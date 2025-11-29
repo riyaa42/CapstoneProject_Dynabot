@@ -1,17 +1,35 @@
+
 # DynaBOT
+
+=======
+
+# Overview of MAT496
+
+In this course, we have primarily learned Langgraph. This is helpful tool to build apps which can process unstructured `text`, find information we are looking for, and present the format we choose. Some specific topics we have covered are:
+
+- Prompting
+- Structured Output 
+- Semantic Search
+- Retreaval Augmented Generation (RAG)
+- Tool calling LLMs & MCP
+- Langgraph: State, Nodes, Graph
+
+We also learned that Langsmith is a nice tool for debugging Langgraph codes.
+
+------
+
+# Project report Template
+
+## Title: Dynabot
+
+## Overview: CURRENT STATUS 
+
+This is a previosu project I have done and here is the current status 
+
 
 **DynaBOT** is a Streamlit app for querying the content of uploaded PDF and PPTX files using a Retrieval-Augmented Generation (RAG) pipeline. 
 It supports multi-file upload, intelligent chunking, MongoDB Atlas vector search, and a dynamic LLM query flow orchestrated using LangGraph.
 
----
-
-Note: Its pretty much complete but some things work a bit roughly so i have to fix that and i want to modify some other things. 
-      known issue: 
-      -langgraph workflow works smoothly but if initial answer returned is graded as bad and it goes to the start of the retry process it will likely end up
-        returning the default message asking you to input a better prompt eventually after going through the proceducers of rewriting prompt + retrieving more
-        chunks. technically everything works as it should though so ill fix it later might need to change some parameters + a minor issue in logic 
-        
----
 
 ## Features
 
@@ -128,4 +146,23 @@ streamlit run app.py
 ```
 
 
+
+## Reason for picking up this project
+
+Explain how this project is aligned with this course content.
+
+
+## Plan
+
+I plan to execute these steps to complete my project.
+
+- [TODO] Step 1 involves blah blah
+- [TODO] Step 2 involves blah blah
+- [TODO] Step 3 involves blah blah
+- ...
+- [TODO] Step n involves blah blah
+
+## Video Summary Link: 
+
+## Conclusion:
 
