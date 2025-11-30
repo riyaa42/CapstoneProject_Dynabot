@@ -166,9 +166,11 @@ I plan to execute these steps to complete my project.
 - [TODO] Step 8 involves adding token streaming
 - [TODO] Step 8 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations and if needed store in the external database (MongoDB)
 - [TODO] Step 9 involves improving langgraph structure and implementing sub graphs. 
-- [TODO] Step 10 involves adding token streaming
-- [TODO] Step 11 involves configuring all relevant files to use a free LLM model instead of gemini-2.0-flash
-- [TODO] Step 12 involves dynamic schema customization for the previously implemented folder functionality. When users upload documents, the LLM will automatically analyzes the content and infer document type and extract relevant metadata fields specific to that type (e.g., fiscal_year for financial docs, authors for research papers). This metadata is added to document chunks in MongoDB. This metadata is used for post-retrieval filtering, hence essentially making you able to do a refined Database search by simply uploading relevant files to a "folder" in the UI. (example: can be used to make something like snuGPT by simply uploading all prospectus documents and manuals)
+- [TODO] Step 10 involves configuring all relevant files to use a free LLM model instead of gemini-2.0-flash
+- [TODO] Step 11 involves dynamic schema customization for the previously implemented folder functionality. When users upload documents, the LLM will automatically analyzes the content and infer document type and extract relevant metadata fields specific to that type (e.g., fiscal_year for financial docs, authors for research papers). This metadata is added to document chunks in MongoDB. This metadata is used for post-retrieval filtering, hence essentially making you able to do a refined Database search by simply uploading relevant files to a "folder" in the UI. (example: can be used to make something like snuGPT by simply uploading all prospectus documents and manuals)
+- [TODO] Step 12 involves using Tesseract to expand from just pdf/pptx files to printed text OCR (scanned images)
+- [TODO] Step 13 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
+- [TODO] Step 14 involves making some implementations and use cases with the project to showcase
 
 ## Video Summary Link: 
 
