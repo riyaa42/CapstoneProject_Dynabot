@@ -3,10 +3,12 @@ base = "dark"
 font = "consolas"
 headingFont = "consolas"
 baseFontSize = 12
+showWidgetBorder = true
+borderColor = "#F25081" 
 
 primaryColor = "#F25081"
-secondaryBackgroundColor = "#0C1820"
+secondaryBackgroundColor = "#000000 "
 textColor = "#C8D1DC"
-borderColor = "#8F00FF"
+borderColor = "#F25081"
 showWidgetBorder = true
 baseRadius = "0.75rem"

@@ -22,6 +22,85 @@ rag_graph_app = get_rag_graph()
 
 st.set_page_config(layout="wide", page_title="DynaBOT")
 
+st.markdown("""
+<style>
+    /* Main app background - black */
+    .stApp {
+        background-color: #000000;
+    .stAppHeader {
+        background-color: #000000;}
+    [data-testid="stSidebar"] {
+        background-color: #1a1a1a;
+    }
+
+
+    /* Multiselect input wrapper - pink border */
+    div[data-testid="stMultiSelect"] > div {
+        border-color: #F25081 !important;
+    }
+
+    /* Multiselect inner div - pink border */
+    div[data-testid="stMultiSelect"] > div > div {
+        border-color: #F25081 !important;
+        background-color: #1a1a1a !important;
+    }
+
+    /* Multiselect actual input component - pink border */
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] {
+        border-color: #F25081 !important;
+        background-color: #1a1a1a !important;
+    }
+
+    /* Selected tags/pills - pink background, white text */
+    span[data-baseweb="tag"] {
+        background-color: #F25081 !important;
+        color: #ffffff !important;
+    }
+
+    /* Dropdown menu container - dark background */
+    div[role="listbox"] {
+        background-color: #1a1a1a !important;
+        border-color: #F25081 !important;
+    }
+
+    /* Dropdown menu items - white text on dark */
+    div[role="listbox"] li {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+
+    /* Dropdown menu selected items - pink background */
+    div[role="listbox"] li[aria-selected="true"] {
+        background-color: #F25081 !important;
+        color: #ffffff !important;
+    }
+
+    /* Placeholder text - gray */
+    div[data-testid="stMultiSelect"] input::placeholder {
+        color: #888888 !important;
+    }
+    .stSpinner > div > div {
+        border-top-color: #F25081;
+        color:#F25081 !important;
+
+    .stChatInputContainer > div > div > input {
+        border-color: #F25081 !important;
+        background-color: #1a1a1a;
+        color: #ffffff !important;
+    }
+    .stChatInputContainer > div > div > input:focus {
+        border-color: #F25081 !important;
+        box-shadow: 0 0 0 0.2rem rgba(242, 80, 129, 0.25) !important;
+    }
+
+   
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+    
+
 try:
     check_env()
 except EnvironmentError as e:
@@ -153,7 +232,7 @@ st.sidebar.markdown("**Select a File**")
 available_files=list(st.session_state.processed_file_info.keys())
 
 if not available_files:
-     st.sidebar.markdown("<span style='color:red'>No files uploaded yet</span>", unsafe_allow_html=True)
+     st.sidebar.markdown("<span style='color:deeppink'>No files uploaded yet</span>", unsafe_allow_html=True)
      
 else:
 
@@ -200,7 +279,7 @@ else:
                 pdf_viewer(
                         session_viewer_path,
                         width="100%",
-                        height=1000,
+                        height=700,
                         zoom_level="auto",
                         viewer_align="right",
                         show_page_separator=True,
@@ -215,6 +294,7 @@ else:
                          max-height: 70vh;
                          overflow-y: auto;
                          padding-right: 10px;
+            
                     }
            """
                 ):
@@ -305,7 +385,7 @@ if not selected_file_names:
             """
             <div style='text-align: center; padding: 60px 20px; color: #888;'>
                 <h1 style='color: #F25081; font-size: 48px; margin-bottom: 10px;'>DynaBOT</h1>
-                <img src='https://img.icons8.com/?size=100&id=100414&format=png&color=F25081' width='150' style='margin-bottom: 30px;' />
+                <img src='https://img.icons8.com/?size=100&id=100414&format=png&color=F25081' width='150' style='margin-bottom: 30px; margin-left: -20px;' />
                 <h2>No documents selected</h2>
                 <p>Please upload or select a file from the sidebar to get started.</p>
             </div>
