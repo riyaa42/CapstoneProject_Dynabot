@@ -12,6 +12,7 @@ load_dotenv()
 from data_processing import load_file, split_docs, convert_pptx_to_pdf
 from db_utils import check_env, cleanup, add_documents, delete_file,search_index
 from langgraph_flow import build_rag_graph, GraphState
+import uuid
 
 
 @st.cache_resource(show_spinner=False)
@@ -106,7 +107,15 @@ try:
 except EnvironmentError as e:
     st.error(str(e))
     st.stop()
-    
+
+#testing new feature start
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4()) 
+
+if "waiting_for_approval" not in st.session_state:
+    st.session_state.waiting_for_approval = False
+#testing new feature end
+
 if "processed_file_info" not in st.session_state:
     st.session_state.processed_file_info={} # key:file_name {str} ,value:{ tmp_path=str, ingestion=bool}
 
@@ -133,6 +142,36 @@ if not st.session_state.orphan_cleanup:
     except Exception as e:
         st.toast(f"Error during initial DB cleanup: {e}")
         st.session_state.initial_db_cleanup_done = True
+
+
+def run_rag_graph(input_state=None, chat_key=None):
+    """
+    Runs the graph. If input_state is None, it resumes from the checkpoint.
+    """
+    config = {"configurable": {"thread_id": st.session_state.thread_id}}
+    
+    with st.spinner("Processing..."):
+        # Run the graph (stream_mode="values" returns the full state at each step)
+        # If input_state is None, LangGraph resumes automatically using thread_id
+        for event in rag_graph_app.stream(input_state, config=config, stream_mode="values"):
+            pass 
+        
+        # Check execution status
+        snapshot = rag_graph_app.get_state(config)
+        
+        # A. Did we stop at the 'human_approval' node?
+        if snapshot.next and "human_approval" in snapshot.next:
+            st.session_state.waiting_for_approval = True
+            st.rerun() # Rerun to hide chat_input and show form
+            
+        # B. Did we finish successfully?
+        else:
+            final_answer = snapshot.values.get("answer", "No answer generated.")
+            st.session_state.chat_history[chat_key].append({"role": "assistant", "content": final_answer})
+            st.session_state.waiting_for_approval = False
+            # We do NOT rerun here, just let the script finish to show the answer
+
+#testing new feature
 
 uploaded_files=st.sidebar.file_uploader("**Upload a file**", type=["pdf","pptx"], accept_multiple_files=True)
 selected_file_names = []
@@ -304,27 +343,96 @@ else:
                          with st.chat_message(message["role"], avatar=avatar):
                               st.write(message["content"])
                     
-
-                if user_input := st.chat_input("Ask a question about the document:"):
-                
-                    st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
-
-                    with st.spinner("Thinking..."):
-                        initial_state = GraphState(
-                        query=user_input,
-                        selected_file_names=[st.session_state.selected_file_name],
-                        search_index_name=search_index,
-                        documents=[],
-                        answer="",
-                        relevance_grade="",
-                        retry_count=0,
-                        search_kwargs={"k": 5}
-                    )
-                        final_state = rag_graph_app.invoke(initial_state)
-                        final_answer = final_state.get("answer")
+                #testing new feature
+                if st.session_state.waiting_for_approval:
                     
-                    st.session_state.chat_history[chat_key].append({"role": "assistant", "content": final_answer})
-                    st.rerun()
+                    config = {"configurable": {"thread_id": st.session_state.thread_id}}
+                    snapshot = rag_graph_app.get_state(config)
+                    
+                    # Get values
+                    current_rewritten_query = snapshot.values.get("query", "")
+                    original_query_val = snapshot.values.get("original_query", "")
+
+                    with st.chat_message("assistant", avatar="https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"):
+                        st.write("I'm having trouble finding good results.")
+                        st.write("I suggest rewriting the query, or we can try searching more documents with your original query.")
+                        
+                        with st.form(key="approval_form"):
+
+                            st.markdown("""
+                                <style>
+                                div.stButton > button:first-child {
+                                    background-color: #F25081
+                                    color: white; 
+                                    font-size: 16px;
+                                    padding: 10px 24px;
+                                    border-radius: 8px;
+                                    border: none;
+                                }
+                                div.stButton > button:first-child:hover {
+                                    background-color: #a53254ff; 
+                                }
+                                </style>""", unsafe_allow_html=True)
+                            
+                            new_query_input = st.text_input("Suggested Rewrite:", value=current_rewritten_query)
+                            
+                            
+                            col_approve, col_orig = st.columns([1, 1])
+                            
+                            with col_approve:
+                            
+                                approve_clicked = st.form_submit_button("Approve Rewrite")
+                            
+                            with col_orig:
+                                
+                                original_clicked = st.form_submit_button("Use Original Query")
+                        
+                        if approve_clicked:
+                            # 1. Update Query to the Input Box value
+                            # 2. Set decision to 'retry' (goes to retrieve)
+                            rag_graph_app.update_state(
+                                config, 
+                                {"query": new_query_input, "user_decision": "retry"}
+                            )
+                            st.session_state.chat_history[chat_key].append({"role": "assistant", "content": f"*(Retrying with: {new_query_input})*"})
+                            run_rag_graph(input_state=None, chat_key=chat_key)
+                            st.rerun()
+
+                        elif original_clicked:
+                            # 1. Revert Query to Original
+                            # 2. Set decision to 'expand' (jumps to expand_retrieval)
+                            rag_graph_app.update_state(
+                                config, 
+                                {"query": original_query_val, "user_decision": "expand"}
+                            )
+                            st.session_state.chat_history[chat_key].append({"role": "assistant", "content": "*(Reverting to original query and expanding search)*"})
+                            run_rag_graph(input_state=None, chat_key=chat_key)
+                            st.rerun()
+
+                # CONDITION 2: Normal state (Not waiting) -> Show Chat Input
+                else:
+                    if user_input := st.chat_input("Ask a question about the document:"):
+                        
+                        # 1. Append user message
+                        st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
+                        with st.spinner("Thinking..."):
+                            # 2. Create Initial State
+                            initial_state = GraphState(
+                                query=user_input,
+                                original_query=user_input, 
+                                selected_file_names=[st.session_state.selected_file_name] if st.session_state.selected_file_name else list(selected_file_names),
+                                search_index_name=search_index,
+                                documents=[],
+                                answer="",
+                                relevance_score=0,
+                                retry_count=0,
+                                search_kwargs={"k": 5}
+                            )
+                        
+                        # 3. Start New Run
+                        run_rag_graph(input_state=initial_state, chat_key=chat_key)
+                        
+                        st.rerun()
 
 
 
@@ -358,11 +466,12 @@ else:
                             
                 initial_state = GraphState(
                                 query=user_input,
+                                original_query=user_input,
                                 selected_file_names=list(selected_file_names), 
                                 search_index_name=search_index,
                                 documents=[],
                                 answer="",
-                                relevance_grade="",
+                                relevance_score=0,
                                 retry_count=0,
                                 search_kwargs={"k": 5}
                             )
