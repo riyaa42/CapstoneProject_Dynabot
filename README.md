@@ -157,6 +157,8 @@ Explain how this project is aligned with this course content.
 I plan to execute these steps to complete my project.
 
 - [TODO] Step 1 involves implementing LangSmith Tracing across the project so that I can access tracing logs for the entire application in order to simplify debugging and optimization, and analyze usage in the future. 
+  {DONE}: Implemented langsmith tracing, did a test run and saw outputs in langsmith UI dashboard 
+
 - [TODO] Step 2 involves FIXING a current error in the langgraph flow whenever the Retry nodes are run, it is failing to produce an expected output and falls back to the "failed" node
 - [TODO] Step 3 involves modifying the current UI file structure and file handing in the background in order to group selected files into visual "folders" for querying. 
 - [TODO] Step 4 involves adding source information of retrieved information in the answer
@@ -171,6 +173,7 @@ I plan to execute these steps to complete my project.
 - [TODO] Step 12 involves using Tesseract to expand from just pdf/pptx files to printed text OCR (scanned images)
 - [TODO] Step 13 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
 - [TODO] Step 14 involves making some implementations and use cases with the project to showcase
+- [TODO] Step 15 UI changes for better aesthetic 
 
 ## Video Summary Link: 
 
