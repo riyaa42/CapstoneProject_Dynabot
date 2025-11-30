@@ -157,7 +157,7 @@ Explain how this project is aligned with this course content.
 I plan to execute these steps to complete my project.
 
 - [TODO] Step 1 involves implementing LangSmith Tracing across the project so that I can access tracing logs for the entire application in order to simplify debugging and optimization, and analyze usage in the future. 
-  {DONE}: Implemented langsmith tracing, did a test run and saw outputs in langsmith UI dashboard 
+    -{DONE}: Implemented langsmith tracing, did a test run and saw outputs in langsmith UI dashboard 
 
 - [TODO] Step 2 involves FIXING a current error in the langgraph flow whenever the Retry nodes are run, it is failing to produce an expected output and falls back to the "failed" node
 - [TODO] Step 3 involves modifying the current UI file structure and file handing in the background in order to group selected files into visual "folders" for querying. 
