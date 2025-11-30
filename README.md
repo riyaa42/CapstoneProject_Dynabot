@@ -159,20 +159,24 @@ I plan to execute these steps to complete my project.
 * [TODO] Step 1 involves implementing LangSmith Tracing across the project so that I can access tracing logs for the entire application in order to simplify debugging and optimization, and analyze usage in the future. 
   - [DONE]: Implemented langsmith tracing, did a test run and saw outputs in langsmith UI dashboard 
 
-* [TODO] Step 2 involves FIXING a current er
+* [TODO] Step 2 involves FIXING a current error in the langgraph flow whenever the Retry nodes are run, it is failing to produce an expected output and falls back to the "failed" node
+  - [DONE]: Fixed the errors
 * [TODO] Step 3 involves modifying the current UI file structure and file handing in the background in order to group selected files into visual "folders" for querying. 
 * [TODO] Step 4 involves adding source information of retrieved information in the answer
 * [TODO] Step 5 involves adding a Research Mode, which on selecting, uses multiple data sources. Main priority still stands on uploaded sources, however, it conducts external web searches and depending on context, more specialized searches, for example, from google scholar, or ArXiv.
 * [TODO] Step 6 is part of a larger step to involve tools and MCP. I want to add a tool that extracts and presents all tables from the uploaded document to the user upon asking. 
 * [TODO] Step 7 involves utility to search files in the local system and Google Drive MCP and not just the uploaded one (MCP)
 * [TODO] Step 8 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations and if needed store in the external database (MongoDB)
-* [TODO] Step 9 involves improving langgraph structure and implementing sub graphs. 
+* [TODO] Step 9 involves improving langgraph structure.
+  - [DONE]: Implemented a much more complicated langgraph structure that has a very thorough procedure for its Retry feature. When the AI fails to find a relevant answer and attempts to rewrite the query, the system now pauses execution to ask for human input instead of guessing automatically. There are two choices in the UI:
+    - Approve/Edit: Accept (or tweak) the AI's suggested rewritten query to retry the search. If this fails still go to expand retrieval but with the rewritten query. 
+    - Use Original & Expand: Reject the rewrite and force the system to use your original query, but search through more documents (increase k) to find the answer.
 * [TODO] Step 10 involves dynamic schema customization for the previously implemented folder functionality. When users upload documents, the LLM will automatically analyzes the content and infer document type and extract relevant metadata fields specific to that type (e.g., fiscal_year for financial docs, authors for research papers). This metadata is added to document chunks in MongoDB. This metadata is used for post-retrieval filtering, hence essentially making you able to do a refined Database search by simply uploading relevant files to a "folder" in the UI. (example: can be used to make something like snuGPT by simply uploading all prospectus documents and manuals)
 * [TODO] Step 11 involves using Tesseract to expand from just pdf/pptx files to printed text OCR (scanned images)
 * [TODO] Step 12 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
 * [TODO] Step 13 involves making some implementations and use cases with the project to showcase
 * [TODO] Step 14 UI changes for better aesthetic 
-  -[DONE] Changed some UI configurations with css for cleaner look
+  - [DONE] Changed some UI configurations with css for cleaner look
 
 ## Video Summary Link: 
 
