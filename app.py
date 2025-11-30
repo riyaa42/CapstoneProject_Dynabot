@@ -361,17 +361,35 @@ else:
 
                             st.markdown("""
                                 <style>
-                                div.stButton > button:first-child {
-                                    background-color: #F25081
-                                    color: white; 
-                                    font-size: 16px;
-                                    padding: 10px 24px;
-                                    border-radius: 8px;
-                                    border: none;
+                                div[data-testid="stForm"] button {
+                                    background-color: #7c52f4 !important;
+                                    border-color: #7c52f4 !important;
                                 }
-                                div.stButton > button:first-child:hover {
-                                    background-color: #a53254ff; 
+
+                               
+                                div[data-testid="stForm"] button p {
+                                    color: #ffffff !important;
                                 }
+
+                               
+                                div[data-testid="stForm"] button:hover {
+                                    background-color: #a53254 !important;
+                                    border-color: #a53254 !important;
+                                }
+
+                                
+                                div[data-testid="stForm"] button:hover p {
+                                    color: #ffffff !important;
+                                }
+
+                             
+                                div[data-testid="stForm"] button:focus, 
+                                div[data-testid="stForm"] button:active {
+                                    background-color: #7c52f4 !important;
+                                    border-color: #7c52f4 !important;
+                                    color: #ffffff !important;
+                                }
+                        }
                                 </style>""", unsafe_allow_html=True)
                             
                             new_query_input = st.text_input("Suggested Rewrite:", value=current_rewritten_query)
@@ -438,11 +456,14 @@ else:
 
     if len(selected_file_names) > 1 and st.session_state.selected_file_name is None:
          chat_key = tuple(sorted(selected_file_names))
+         
          if chat_key not in st.session_state.chat_history:
                 st.session_state.chat_history[chat_key] = []
          session_chat_history = st.session_state.chat_history[chat_key]
 
          st.subheader(f"Chat with: {', '.join(selected_file_names)}")
+         
+         # Display Chat History
          with stylable_container(
                     key="scroll_chat_container",
                     css_styles="""
@@ -458,33 +479,108 @@ else:
                          with st.chat_message(message["role"], avatar=avatar):
                              st.write(message["content"])
 
-         if user_input := st.chat_input("Ask a question about the files:"):
+    
+         if st.session_state.waiting_for_approval:
+             
+             config = {"configurable": {"thread_id": st.session_state.thread_id}}
+             snapshot = rag_graph_app.get_state(config)
+             
+             # Get values from state
+             current_rewritten_query = snapshot.values.get("query", "")
+             original_query_val = snapshot.values.get("original_query", "")
 
-            st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
+             with st.chat_message("assistant", avatar="https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"):
+                 st.write("I'm having trouble finding good results.")
+                 st.write("I suggest rewriting the query, or we can try searching more documents with your original query.")
+                 
+                 with st.form(key="approval_form_multi"):
+                     
+                     st.markdown("""
+                         <style>
+                        div[data-testid="stForm"] button {
+                                    background-color: #7c52f4 !important;
+                                    border-color: #7c52f4 !important;
+                                }
 
-            with st.spinner("Thinking..."):
-                            
-                initial_state = GraphState(
-                                query=user_input,
-                                original_query=user_input,
-                                selected_file_names=list(selected_file_names), 
-                                search_index_name=search_index,
-                                documents=[],
-                                answer="",
-                                relevance_score=0,
-                                retry_count=0,
-                                search_kwargs={"k": 5}
-                            )
+                               
+                                div[data-testid="stForm"] button p {
+                                    color: #ffffff !important;
+                                }
 
-                            
-                final_state = rag_graph_app.invoke(initial_state)
-                            
-                            
-                final_answer = final_state.get("answer")
+                                
+                                div[data-testid="stForm"] button:hover {
+                                    background-color: #a53254 !important;
+                                    border-color: #a53254 !important;
+                                }
 
-                        
-            st.session_state.chat_history[chat_key].append({"role": "assistant", "content": final_answer})
-            st.rerun() 
+                                
+                                div[data-testid="stForm"] button:hover p {
+                                    color: #ffffff !important;
+                                }
+
+                                
+                                div[data-testid="stForm"] button:focus, 
+                                div[data-testid="stForm"] button:active {
+                                    background-color: #7c52f4 !important;
+                                    border-color: #7c52f4 !important;
+                                    color: #ffffff !important;
+                                }
+                         </style>""", unsafe_allow_html=True)
+                     
+                     new_query_input = st.text_input("Suggested Rewrite:", value=current_rewritten_query)
+                     
+                     col_approve, col_orig = st.columns([1, 1])
+                     
+                     with col_approve:
+                         approve_clicked = st.form_submit_button("Approve Rewrite")
+                     
+                     with col_orig:
+                         original_clicked = st.form_submit_button("Use Original Query")
+                 
+                 if approve_clicked:
+                     # Update state to 'retry' with new query
+                     rag_graph_app.update_state(
+                         config, 
+                         {"query": new_query_input, "user_decision": "retry"}
+                     )
+                     st.session_state.chat_history[chat_key].append({"role": "assistant", "content": f"*(Retrying with: {new_query_input})*"})
+                     run_rag_graph(input_state=None, chat_key=chat_key)
+                     st.rerun()
+
+                 elif original_clicked:
+                     # Update state to 'expand' with original query
+                     rag_graph_app.update_state(
+                         config, 
+                         {"query": original_query_val, "user_decision": "expand"}
+                     )
+                     st.session_state.chat_history[chat_key].append({"role": "assistant", "content": "*(Reverting to original query and expanding search)*"})
+                     run_rag_graph(input_state=None, chat_key=chat_key)
+                     st.rerun()
+
+         # CONDITION 2: Normal Chat Input (Multi-file)
+         else:
+             if user_input := st.chat_input("Ask a question about the files:"):
+
+                st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
+
+                with st.spinner("Thinking..."):
+                    # Create Initial State (Ensure original_query is set)        
+                    initial_state = GraphState(
+                                    query=user_input,
+                                    original_query=user_input, # <--- Added this
+                                    selected_file_names=list(selected_file_names), 
+                                    search_index_name=search_index,
+                                    documents=[],
+                                    answer="",
+                                    relevance_score=0,
+                                    retry_count=0,
+                                    search_kwargs={"k": 5}
+                                )
+
+                    # Run graph using the helper (handles interrupts)       
+                    run_rag_graph(input_state=initial_state, chat_key=chat_key)
+                            
+                st.rerun()
 
 placeholder = st.empty()
 
