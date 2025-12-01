@@ -9,19 +9,20 @@ from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-# Document is still needed for type hinting the retrieval return
+
 from langchain_core.documents import Document 
 
 from db_utils import get_collection, set_embedding_model
 import streamlit as st
 
-# 1. UPDATE STATE TYPE
+
 class GraphState(TypedDict):
     query: str
     original_query: str
+    chat_history: str 
     db_name: str
     selected_file_names: List[str]
-    documents: List[dict] # <--- Changed from List[Document] to List[dict]
+    documents: List[dict] 
     answer: str
     relevance_score: int
     retry_count: int
@@ -94,6 +95,8 @@ def retrieve_documents(state: GraphState) -> GraphState:
 
 def generate_answer(state: GraphState) -> GraphState:
     query = state.get("query", "")
+    
+    chat_history = state.get("chat_history", "") 
     documents = state.get("documents", [])
     
     # Access via dictionary key
@@ -101,14 +104,33 @@ def generate_answer(state: GraphState) -> GraphState:
     
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.3)
     
+    
     prompt_template = ChatPromptTemplate.from_template(
         """You are a chatbot answering questions about documents uploaded by a user. Use the provided context to answer the question.
         You may infer reasonable conclusions if they logically follow from the context and extend the answer.
-        Do not mention the existence of "context" or "document" in your response. Do not mention anything referring to the document provided
-        The context you see has already been collected from the documents for you to answer questions from.
-        Make your answer readable by utilizing bullet points whenever possible.
+        Do not mention the existence of "context" or "document" in your response. Do not mention anything referring to the document provided.
+        The context you see has already been collected from the documents for you to answer questions from. 
+        
+        You have been provided the conversation history in "Previous Conversation History" for a limited number of the previous messages which you can use to
+        infer things about the context of the user's question (e.g., what pronouns like "it" or "they" refer to). You can make logical deductions.
+
+        
+        Make your answer readable by utilizing bullet points whenever possible, but do not unnecessarily use them in cases
+        where text formatted in paragraphs would be more readable. Do not give extremely long or short answers unless the user asks specifically 
+        or unless the genuine content of the answer is brief or extremely lengthy itself, in which you may resort to giving extremely long or short
+        answers. Keep general answers to a medium length.
+
+        **Important:** If the provided Context contains interesting related details that were not specifically asked for, 
+        you are highly encouraged to end your response by asking: "Would you like to know more about [Related Topic]?"
+
+    
+        Previous Conversation history:
+        {chat_history}
+
 
         Context: {context}
+
+
         Question: {query}
         Answer:"""
     )
@@ -120,7 +142,12 @@ def generate_answer(state: GraphState) -> GraphState:
     )
     
     try:
-        answer = rag_chain.invoke({"query": query, "context": context})
+        # Pass chat_history to the chain
+        answer = rag_chain.invoke({
+            "query": query, 
+            "context": context, 
+            "chat_history": chat_history
+        })
         state["answer"] = answer
     
        
@@ -139,11 +166,21 @@ def evaluate_answer(state: GraphState) -> dict:
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.3)
 
     evaluation_prompt = ChatPromptTemplate.from_template(
-      """You are an answer evaluator. Your task is to determine the relevance of a generated answer 
-        to the user's query based on the provided documents that act as context. A relevant answer is something
-        that is defined as fulfilling the user's query and being supported by the context. Rate the relevance
-        on a scale from 1 (not relevant) to 10 (highly relevant).
-        Respond with only the number.
+      """You are an expert answer evaluator for a RAG system. Your task is to determine the relevance and accuracy of a generated answer by an llm
+        to a user's query relative to the and based on the yser query and the provided documents that act as context which has to be used 
+        as a primary source to generate the answer. 
+
+    Criteria for grading:
+    1. Groundedness: The answer must be based primarily on the provided Retrieved Documents. It can contain logical deductions and common sense but not hallucinations.
+    2. Relevance: The answer must directly address the User Query. (MOST IMPORTANT)
+    3. Completeness: The answer should utilize the context fully to provide a helpful response.
+
+    Score the answer on a scale from 1 to 10:
+    - 1: The answer is hallucinated, factually incorrect according to the docs, or completely irrelevant.
+    - 5: The answer touches on the topic but misses key details or includes some unsupported claims.
+    - 10: The answer is perfectly grounded in the documents and fully answers the user's question.
+
+    Respond with ONLY the numerical score (e.g., 8).
         
         User Query: {query}
         Retrieved Documents: {documents}
@@ -181,22 +218,32 @@ def retry_counter(state: GraphState) -> GraphState:
 
 def generate_better_prompt(state: GraphState) -> GraphState:
     query = state.get("query", "")
+    
+    chat_history = state.get("chat_history", "")
     documents = state.get("documents", [])
     
-    # Access via dictionary key
+   
     retrieved_content = "\n\n".join([doc["page_content"] for doc in documents])
     
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.5)
     
+  
     reprompt_template = ChatPromptTemplate.from_template(
-      """You are a query re-writer. The initial retrieval for the user's query was unsuccessful.
-        To help you, here is the original query and the content that was retrieved initially. Analyze the retrieved content to 
-        get clues on the what the user might be looking for, and rephrase the original query to be more effective
-         for a new retrieval attempt. Your goal is to find
-        a query that is more specific and better suited for a vector search.
+      """You are a query re-writer. The user asked a query, relevant context information found in a pre-decided database
+      was fetched, and an answer was generated by an LLM. The initial retrieval for the user's query was unsuccessful.
+        To help you, here is the original query, the previous conversation history, and the content from the context that was retrieved initially. 
+        
+        Your task:
+        1. Look at the "Original Query" and "Previous Conversation History" to understand what the user is truly asking (resolve pronouns like 'it', 'he', 'that').
+        2. Analyze the "Initially Retrieved Content" to see why it failed.
+        3. Rephrase the query to be specific and optimized for vector similarity search.
+        
         Only return the rephrased query without any additional text.
 
         Original Query: {original_query}
+
+        Previous Conversation History:
+        {chat_history}
 
         Initially Retrieved Content:
         {retrieved_content}
@@ -207,9 +254,11 @@ def generate_better_prompt(state: GraphState) -> GraphState:
     rephraser = (reprompt_template | llm | StrOutputParser())
     
     try:
+        
         new_query = rephraser.invoke({
             "original_query": query,
-            "retrieved_content": retrieved_content
+            "retrieved_content": retrieved_content,
+            "chat_history": chat_history
         }).strip()
         
         state["query"] = new_query

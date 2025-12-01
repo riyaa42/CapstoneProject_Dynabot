@@ -173,6 +173,42 @@ def run_rag_graph(input_state=None, chat_key=None):
 
 #testing new feature
 
+def get_formatted_history(chat_key):
+    """
+    Formats history string based on message count rules:
+    - If total history < 5 messages: Keep last 1 pair (User/AI).
+    - If total history >= 5 messages: Keep last 2 pairs (User/AI/User/AI).
+    """
+    if chat_key not in st.session_state.chat_history:
+        return ""
+    
+    # Get all messages EXCEPT the current one (the user just typed it)
+    # We want history, not the current query repeated
+    full_history = st.session_state.chat_history[chat_key][:-1]
+    
+    total_messages = len(full_history)
+    
+    if total_messages == 0:
+        return ""
+        
+    # LOGIC: 
+    # If messages < 5, keep last 2 messages (1 interaction pair)
+    # If messages >= 5, keep last 4 messages (2 interaction pairs)
+    limit = 2 if total_messages < 5 else 4
+    
+    # Slice the list
+    subset_history = full_history[-limit:]
+    
+    # Format as string
+    history_str = ""
+    for msg in subset_history:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        content = msg["content"]
+        history_str += f"{role}: {content}\n"
+        
+    return history_str
+
+
 uploaded_files=st.sidebar.file_uploader("**Upload a file**", type=["pdf","pptx"], accept_multiple_files=True)
 selected_file_names = []
 
@@ -433,6 +469,7 @@ else:
                         
                         # 1. Append user message
                         st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
+                        history_context = get_formatted_history(chat_key)
                         with st.spinner("Thinking..."):
                             # 2. Create Initial State
                             initial_state = GraphState(
@@ -562,6 +599,7 @@ else:
              if user_input := st.chat_input("Ask a question about the files:"):
 
                 st.session_state.chat_history[chat_key].append({"role": "user", "content": user_input})
+                history_context = get_formatted_history(chat_key)
 
                 with st.spinner("Thinking..."):
                     # Create Initial State (Ensure original_query is set)        

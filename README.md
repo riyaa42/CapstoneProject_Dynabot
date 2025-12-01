@@ -166,7 +166,8 @@ I plan to execute these steps to complete my project.
 * [TODO] Step 5 involves adding a Research Mode, which on selecting, uses multiple data sources. Main priority still stands on uploaded sources, however, it conducts external web searches and depending on context, more specialized searches, for example, from google scholar, or ArXiv.
 * [TODO] Step 6 is part of a larger step to involve tools and MCP. I want to add a tool that extracts and presents all tables from the uploaded document to the user upon asking. 
 * [TODO] Step 7 involves utility to search files in the local system and Google Drive MCP and not just the uploaded one (MCP)
-* [TODO] Step 8 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations and if needed store in the external database (MongoDB)
+* [TODO] Step 8 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations.
+  - [DONE]: Integrated short-term conversational memory that injects recent message history into the prompts for both generating answers and rewriting answers, enabling the model to handle follow-up questions. 
 * [TODO] Step 9 involves improving langgraph structure.
   - [DONE]: Implemented a much more complicated langgraph structure that has a very thorough procedure for its Retry feature. When the AI fails to find a relevant answer and attempts to rewrite the query, the system now pauses execution to ask for human input instead of guessing automatically. There are two choices in the UI:
     - Approve/Edit: Accept (or tweak) the AI's suggested rewritten query to retry the search. If this fails still go to expand retrieval but with the rewritten query. 
@@ -176,7 +177,9 @@ I plan to execute these steps to complete my project.
 * [TODO] Step 12 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
 * [TODO] Step 13 involves making some implementations and use cases with the project to showcase
 * [TODO] Step 14 UI changes for better aesthetic 
-  - [DONE] Changed some UI configurations with css for cleaner look
+  - [DONE]: Changed some UI configurations with css for cleaner look
+* [TODO] Step 15 modify prompt templates to give better outputs
+  - [DONE]: Refined the generation and evaluation prompts to enforce stricter groundedness in retrieved documents, unbiased scoring criteria, and conditional topic suggestions.
 
 ## Video Summary Link: 
 
