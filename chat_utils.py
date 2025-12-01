@@ -51,13 +51,11 @@ def run_rag_graph(input_state=None, chat_key=None):
         
         # Check execution status
         snapshot = rag_graph_app.get_state(config)
-        
-        
+
         if snapshot.next and "human_approval" in snapshot.next:
             st.session_state.waiting_for_approval = True
-            st.rerun() 
-            
-        
+            st.rerun()
+
         else:
             final_answer = snapshot.values.get("answer", "No answer generated.")
             st.session_state.chat_history[chat_key].append({"role": "assistant", "content": final_answer})

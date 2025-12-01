@@ -186,6 +186,13 @@ else:
     else:
         st.session_state.selected_file_name = None
 
+    st.sidebar.markdown("---")
+    research_mode_on = st.sidebar.toggle(
+        "Research Mode", 
+        value=False, 
+        help="Enables external tools to augment the answer."
+    )
+
     if st.session_state.selected_file_name is not None:
         selected_file_name=st.session_state.selected_file_name
         selected_file_info=st.session_state.processed_file_info.get(selected_file_name)
@@ -299,13 +306,16 @@ else:
                             initial_state = GraphState(
                                 query=user_input,
                                 original_query=user_input, 
+                                chat_history=history_context, 
                                 selected_file_names=[st.session_state.selected_file_name] if st.session_state.selected_file_name else list(selected_file_names),
                                 search_index_name=search_index,
                                 documents=[],
                                 answer="",
                                 relevance_score=0,
                                 retry_count=0,
-                                search_kwargs={"k": 5}
+                                search_kwargs={"k": 5},     
+                                research_mode=research_mode_on, 
+                                external_context=[],
                             )
                         
                         # 3. Start New Run
@@ -399,14 +409,17 @@ else:
                     # Create Initial State (Ensure original_query is set)        
                     initial_state = GraphState(
                                     query=user_input,
-                                    original_query=user_input, # <--- Added this
+                                    original_query=user_input, 
+                                    chat_history=history_context,
                                     selected_file_names=list(selected_file_names), 
                                     search_index_name=search_index,
                                     documents=[],
                                     answer="",
                                     relevance_score=0,
                                     retry_count=0,
-                                    search_kwargs={"k": 5}
+                                    search_kwargs={"k": 5}, 
+                                    research_mode=research_mode_on, 
+                                    external_context=[],
                                 )
 
                     # Run graph using the helper (handles interrupts)       
