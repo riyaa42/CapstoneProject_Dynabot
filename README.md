@@ -168,27 +168,30 @@ I plan to execute these steps to complete my project.
   - [DONE]: Fixed the errors
 * [TODO] Step 3 involves modifying the current UI file structure and file handing in the background in order to group selected files into visual "folders" for querying. 
 * [TODO] Step 4 involves adding source information of retrieved information in the answer
+  - [DONE]: All mongodb documents and external documents have information retained such as file name/page number/url. There is a thorough process in place to retain and maintain all metadata. Implementation in UI however is not perfect yet and is being done in a very straightforward manner through the prompt. Have tried other methods but they were changing the way some of the documents were retrieved and hence messing with the RAG flow so I did not proceed further with that try. 
 * [TODO] Step 5 involves adding a Research Mode, which on selecting, uses multiple data sources. Main priority still stands on uploaded sources, however, it conducts external web searches and depending on context, more specialized searches, for example, from google scholar, or ArXiv.
+  - [DONE]: Have implimented external secondary search through a toggle button ("Research Node") in the UI that performs parallel tool calls for a general web search, wikipedia, and arXiv ( academic, mostly scientific articles). This covers a large number of bases for a variety of topics even if all tool calls are not utilized at the same time.
 * [TODO] Step 6 is part of a larger step to involve tools and MCP. I want to add a tool that extracts and presents all tables from the uploaded document to the user upon asking. 
-* [TODO] Step 7 involves utility to search files in the local system and Google Drive MCP and not just the uploaded one (MCP)
-* [TODO] Step 8 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations.
+  - [DONE WITH CAVEAT]: Have technically implemented this step in a previous update that adds a thorough amount of refinement to data_processing in order to refine the process of extracting and reading tables. Did not implement a tool call for this in this iteration of the project. 
+* [TODO] Step 7 involves integrating Memory and context management into the agent. The current system preserves history but has no memory. Add memory of past conversations.
   - [DONE]: Integrated short-term conversational memory that injects recent message history into the prompts for both generating answers and rewriting answers, enabling the model to handle follow-up questions. 
-* [TODO] Step 9 involves improving langgraph structure.
+* [TODO] Step 8 involves improving langgraph structure.
   - [DONE]: Implemented a much more complicated langgraph structure that has a very thorough procedure for its Retry feature. When the AI fails to find a relevant answer and attempts to rewrite the query, the system now pauses execution to ask for human input instead of guessing automatically. There are two choices in the UI:
     - Approve/Edit: Accept (or tweak) the AI's suggested rewritten query to retry the search. If this fails still go to expand retrieval but with the rewritten query. 
     - Use Original & Expand: Reject the rewrite and force the system to use your original query, but search through more documents (increase k) to find the answer.
     - Made relevant UI changes to implement feature
-* [TODO] Step 10 involves dynamic schema customization for the previously implemented folder functionality. When users upload documents, the LLM will automatically analyzes the content and infer document type and extract relevant metadata fields specific to that type (e.g., fiscal_year for financial docs, authors for research papers). This metadata is added to document chunks in MongoDB. This metadata is used for post-retrieval filtering, hence essentially making you able to do a refined Database search by simply uploading relevant files to a "folder" in the UI. (example: can be used to make something like snuGPT by simply uploading all prospectus documents and manuals)
-* [TODO] Step 11 involves using Tesseract to expand from just pdf/pptx files to printed text OCR (scanned images)
-* [TODO] Step 12 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
-* [TODO] Step 13 involves making some implementations and use cases with the project to showcase
-* [TODO] Step 14 UI changes for better aesthetic 
+* [TODO] Step 9 involves dynamic schema customization for the previously implemented folder functionality. When users upload documents, the LLM will automatically analyzes the content and infer document type and extract relevant metadata fields specific to that type (e.g., fiscal_year for financial docs, authors for research papers). This metadata is added to document chunks in MongoDB. This metadata is used for post-retrieval filtering, hence essentially making you able to do a refined Database search by simply uploading relevant files to a "folder" in the UI. (example: can be used to make something like snuGPT by simply uploading all prospectus documents and manuals)
+* [TODO] Step 10 involves using Tesseract to expand from just pdf/pptx files to printed text OCR (scanned images)
+* [TODO] Step 11 involves attempting to make a parser for NetCDF files to expand the project to accomodate scientific usecases
+* [TODO] Step 12 involves making some implementations and use cases with the project to showcase
+  - [DONE]: Have finalized on what documents to use to fully portray the potential of this project in the video
+* [TODO] Step 13 UI changes for better aesthetic 
   - [DONE]: Changed some UI configurations with css for cleaner look
-* [TODO] Step 15 modify prompt templates to give better outputs
+* [TODO] Step 14 modify prompt templates to give better outputs
   - [DONE]: Refined the generation and evaluation prompts to enforce stricter groundedness in retrieved documents, unbiased scoring criteria, and conditional topic suggestions.
-* [TODO] Step 16 involves cleaning and restructuring code to fit in all these additional changes in a neater format without having bloated files with extremely lengthy codes
+* [TODO] Step 15 involves cleaning and restructuring code to fit in all these additional changes in a neater format without having bloated files with extremely lengthy codes
   - [DONE]: significantly restructured my entire codebase to include multiple new folders and more broken down and cleaner code
-* [TODO] Step 17 revamp data pre processing
+* [TODO] Step 16 revamp data pre processing
   - [DONE]:  Drastically reduced chunk_size and overlap in chunks to improve vector search granularity, yields better outputs.Modified logic to inject Markdown-formatted tables inline with their corresponding page text, preserving semantic proximity (previously appended to the end of the document list).Added heuristic checks (regex for alphanumeric content, empty DataFrame drops) to discard false-positive tables. Made changes to ensures text is captured even from PDFs where PyMuPDF fails which prevents "empty table" data from confusing the LLM and ensures table data is associated with the correct textual context.
 
 ## Video Summary Link: 
