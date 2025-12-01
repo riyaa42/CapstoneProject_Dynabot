@@ -9,96 +9,17 @@ from streamlit_pdf_viewer import pdf_viewer
 from streamlit_extras.stylable_container import stylable_container
 import os
 load_dotenv()
-from data_processing import load_file, split_docs, convert_pptx_to_pdf
-from db_utils import check_env, cleanup, add_documents, delete_file,search_index
-from langgraph_flow import build_rag_graph, GraphState
+from utils.data_processing import load_file, split_docs, convert_pptx_to_pdf
+from utils.db_utils import check_env, cleanup, add_documents, delete_file,search_index
+from langgraph_flow import GraphState
+from chat_utils import rag_graph_app, run_rag_graph, get_formatted_history
+from extras.custom_css import get_custom_css, apply_form_button_styles
 import uuid
 
 
-@st.cache_resource(show_spinner=False)
-def get_rag_graph():
-    return build_rag_graph()
-
-rag_graph_app = get_rag_graph()
-
 st.set_page_config(layout="wide", page_title="DynaBOT")
 
-st.markdown("""
-<style>
-    /* Main app background - black */
-    .stApp {
-        background-color: #000000;
-    .stAppHeader {
-        background-color: #000000;}
-    [data-testid="stSidebar"] {
-        background-color: #1a1a1a;
-    }
-
-
-    /* Multiselect input wrapper - pink border */
-    div[data-testid="stMultiSelect"] > div {
-        border-color: #F25081 !important;
-    }
-
-    /* Multiselect inner div - pink border */
-    div[data-testid="stMultiSelect"] > div > div {
-        border-color: #F25081 !important;
-        background-color: #1a1a1a !important;
-    }
-
-    /* Multiselect actual input component - pink border */
-    div[data-testid="stMultiSelect"] div[data-baseweb="select"] {
-        border-color: #F25081 !important;
-        background-color: #1a1a1a !important;
-    }
-
-    /* Selected tags/pills - pink background, white text */
-    span[data-baseweb="tag"] {
-        background-color: #F25081 !important;
-        color: #ffffff !important;
-    }
-
-    /* Dropdown menu container - dark background */
-    div[role="listbox"] {
-        background-color: #1a1a1a !important;
-        border-color: #F25081 !important;
-    }
-
-    /* Dropdown menu items - white text on dark */
-    div[role="listbox"] li {
-        background-color: #1a1a1a !important;
-        color: #ffffff !important;
-    }
-
-    /* Dropdown menu selected items - pink background */
-    div[role="listbox"] li[aria-selected="true"] {
-        background-color: #F25081 !important;
-        color: #ffffff !important;
-    }
-
-    /* Placeholder text - gray */
-    div[data-testid="stMultiSelect"] input::placeholder {
-        color: #888888 !important;
-    }
-    .stSpinner > div > div {
-        border-top-color: #F25081;
-        color:#F25081 !important;
-
-    .stChatInputContainer > div > div > input {
-        border-color: #F25081 !important;
-        background-color: #1a1a1a;
-        color: #ffffff !important;
-    }
-    .stChatInputContainer > div > div > input:focus {
-        border-color: #F25081 !important;
-        box-shadow: 0 0 0 0.2rem rgba(242, 80, 129, 0.25) !important;
-    }
-
-   
-}
-
-</style>
-""", unsafe_allow_html=True)
+st.markdown(get_custom_css(), unsafe_allow_html=True)
 
     
 
@@ -142,72 +63,6 @@ if not st.session_state.orphan_cleanup:
     except Exception as e:
         st.toast(f"Error during initial DB cleanup: {e}")
         st.session_state.initial_db_cleanup_done = True
-
-
-def run_rag_graph(input_state=None, chat_key=None):
-    """
-    Runs the graph. If input_state is None, it resumes from the checkpoint.
-    """
-    config = {"configurable": {"thread_id": st.session_state.thread_id}}
-    
-    with st.spinner("Processing..."):
-        # Run the graph (stream_mode="values" returns the full state at each step)
-        # If input_state is None, LangGraph resumes automatically using thread_id
-        for event in rag_graph_app.stream(input_state, config=config, stream_mode="values"):
-            pass 
-        
-        # Check execution status
-        snapshot = rag_graph_app.get_state(config)
-        
-        # A. Did we stop at the 'human_approval' node?
-        if snapshot.next and "human_approval" in snapshot.next:
-            st.session_state.waiting_for_approval = True
-            st.rerun() # Rerun to hide chat_input and show form
-            
-        # B. Did we finish successfully?
-        else:
-            final_answer = snapshot.values.get("answer", "No answer generated.")
-            st.session_state.chat_history[chat_key].append({"role": "assistant", "content": final_answer})
-            st.session_state.waiting_for_approval = False
-            # We do NOT rerun here, just let the script finish to show the answer
-
-#testing new feature
-
-def get_formatted_history(chat_key):
-    """
-    Formats history string based on message count rules:
-    - If total history < 5 messages: Keep last 1 pair (User/AI).
-    - If total history >= 5 messages: Keep last 2 pairs (User/AI/User/AI).
-    """
-    if chat_key not in st.session_state.chat_history:
-        return ""
-    
-    # Get all messages EXCEPT the current one (the user just typed it)
-    # We want history, not the current query repeated
-    full_history = st.session_state.chat_history[chat_key][:-1]
-    
-    total_messages = len(full_history)
-    
-    if total_messages == 0:
-        return ""
-        
-    # LOGIC: 
-    # If messages < 5, keep last 2 messages (1 interaction pair)
-    # If messages >= 5, keep last 4 messages (2 interaction pairs)
-    limit = 2 if total_messages < 5 else 4
-    
-    # Slice the list
-    subset_history = full_history[-limit:]
-    
-    # Format as string
-    history_str = ""
-    for msg in subset_history:
-        role = "User" if msg["role"] == "user" else "Assistant"
-        content = msg["content"]
-        history_str += f"{role}: {content}\n"
-        
-    return history_str
-
 
 uploaded_files=st.sidebar.file_uploader("**Upload a file**", type=["pdf","pptx"], accept_multiple_files=True)
 selected_file_names = []
@@ -375,7 +230,7 @@ else:
                 ):
 
                     for message in session_chat_history:
-                         avatar="https://img.icons8.com/?size=100&id=0LnHUOCnYTrK&format=png&color=F25081" if message["role"] == "user" else "https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"
+                         avatar="icons/humanicon.png" if message["role"] == "user" else "icons/boticon.png"
                          with st.chat_message(message["role"], avatar=avatar):
                               st.write(message["content"])
                     
@@ -389,44 +244,13 @@ else:
                     current_rewritten_query = snapshot.values.get("query", "")
                     original_query_val = snapshot.values.get("original_query", "")
 
-                    with st.chat_message("assistant", avatar="https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"):
+                    with st.chat_message("assistant", avatar="icons/boticon.png"):
                         st.write("I'm having trouble finding good results.")
                         st.write("I suggest rewriting the query, or we can try searching more documents with your original query.")
                         
                         with st.form(key="approval_form"):
 
-                            st.markdown("""
-                                <style>
-                                div[data-testid="stForm"] button {
-                                    background-color: #7c52f4 !important;
-                                    border-color: #7c52f4 !important;
-                                }
-
-                               
-                                div[data-testid="stForm"] button p {
-                                    color: #ffffff !important;
-                                }
-
-                               
-                                div[data-testid="stForm"] button:hover {
-                                    background-color: #a53254 !important;
-                                    border-color: #a53254 !important;
-                                }
-
-                                
-                                div[data-testid="stForm"] button:hover p {
-                                    color: #ffffff !important;
-                                }
-
-                             
-                                div[data-testid="stForm"] button:focus, 
-                                div[data-testid="stForm"] button:active {
-                                    background-color: #7c52f4 !important;
-                                    border-color: #7c52f4 !important;
-                                    color: #ffffff !important;
-                                }
-                        }
-                                </style>""", unsafe_allow_html=True)
+                            st.markdown(apply_form_button_styles(), unsafe_allow_html=True)
                             
                             new_query_input = st.text_input("Suggested Rewrite:", value=current_rewritten_query)
                             
@@ -512,8 +336,8 @@ else:
            """
          ):
                      for message in session_chat_history:
-                         avatar="https://img.icons8.com/?size=100&id=0LnHUOCnYTrK&format=png&color=F25081" if message["role"] == "user" else "https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"
-                         with st.chat_message(message["role"], avatar=avatar):
+                        avatar="icons/humanicon.png" if message["role"] == "user" else "icons/boticon.png"
+                        with st.chat_message(message["role"], avatar=avatar):
                              st.write(message["content"])
 
     
@@ -526,43 +350,13 @@ else:
              current_rewritten_query = snapshot.values.get("query", "")
              original_query_val = snapshot.values.get("original_query", "")
 
-             with st.chat_message("assistant", avatar="https://img.icons8.com/?size=100&id=100414&format=png&color=7950F2"):
+             with st.chat_message("assistant", avatar="icons/boticon.png"):
                  st.write("I'm having trouble finding good results.")
                  st.write("I suggest rewriting the query, or we can try searching more documents with your original query.")
                  
                  with st.form(key="approval_form_multi"):
                      
-                     st.markdown("""
-                         <style>
-                        div[data-testid="stForm"] button {
-                                    background-color: #7c52f4 !important;
-                                    border-color: #7c52f4 !important;
-                                }
-
-                               
-                                div[data-testid="stForm"] button p {
-                                    color: #ffffff !important;
-                                }
-
-                                
-                                div[data-testid="stForm"] button:hover {
-                                    background-color: #a53254 !important;
-                                    border-color: #a53254 !important;
-                                }
-
-                                
-                                div[data-testid="stForm"] button:hover p {
-                                    color: #ffffff !important;
-                                }
-
-                                
-                                div[data-testid="stForm"] button:focus, 
-                                div[data-testid="stForm"] button:active {
-                                    background-color: #7c52f4 !important;
-                                    border-color: #7c52f4 !important;
-                                    color: #ffffff !important;
-                                }
-                         </style>""", unsafe_allow_html=True)
+                     st.markdown(apply_form_button_styles(), unsafe_allow_html=True)
                      
                      new_query_input = st.text_input("Suggested Rewrite:", value=current_rewritten_query)
                      
@@ -619,6 +413,7 @@ else:
                     run_rag_graph(input_state=initial_state, chat_key=chat_key)
                             
                 st.rerun()
+
 
 placeholder = st.empty()
 
