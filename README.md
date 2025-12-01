@@ -77,6 +77,11 @@ It supports multi-file upload, intelligent chunking, MongoDB Atlas vector search
 - UI layout adapts to single or multi-file mode
 
 ---
+### Langgraph Dashboard Showcasing Flow
+<img width="587" height="694" alt="image" src="https://github.com/user-attachments/assets/e4031744-e0fb-4642-9c5c-bf78eaf33130" />
+
+---
+
 
 ##Setup Instructions 
 
