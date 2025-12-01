@@ -180,6 +180,8 @@ I plan to execute these steps to complete my project.
   - [DONE]: Changed some UI configurations with css for cleaner look
 * [TODO] Step 15 modify prompt templates to give better outputs
   - [DONE]: Refined the generation and evaluation prompts to enforce stricter groundedness in retrieved documents, unbiased scoring criteria, and conditional topic suggestions.
+* [TODO] Step 16 involves cleaning and restructuring code to fit in all these additional changes in a neater format without having bloated files with extremely lengthy codes
+  - [DONE]: significantly restructured my entire codebase to include multiple new folders and more broken down and cleaner code
 
 ## Video Summary Link: 
 
