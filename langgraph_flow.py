@@ -67,14 +67,14 @@ def get_retriever(search_index_name: str, file_names_filter: List[str], k:int=5)
     return retriever
 
 def retrieve_documents(state: GraphState) -> GraphState:
- ''' #debugging code
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Node Debugger")
+  ####debugging code
+   # st.sidebar.markdown("---")
+   # st.sidebar.subheader("Node Debugger")
     
-    r_mode = state.get('research_mode')
-    st.sidebar.write(f"**Current Node:** retrieve_documents")
-    st.sidebar.write(f"**Research Mode:** `{r_mode}`")
-    st.sidebar.write(f"**Query:** {state.get('query')}")'''
+    ##r_mode = state.get('research_mode')
+    ##st.sidebar.write(f"**Current Node:** retrieve_documents")
+    ##st.sidebar.write(f"**Research Mode:** `{r_mode}`")
+    ##st.sidebar.write(f"**Query:** {state.get('query')}")
 
     query = state.get("query", "")
     selected_file_names = state.get("selected_file_names", [])
