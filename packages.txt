@@ -1,0 +1,6 @@
+libreoffice
+libreoffice-java-common
+default-jre
+libmagic-dev
+poppler-utils
+tesseract-ocr
