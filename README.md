@@ -154,7 +154,33 @@ streamlit run app.py
 
 ## Reason for picking up this project
 
-Explain how this project is aligned with this course content.
+I made a very basic version of this project beforehand during the summer break because it seemed like a very simple idea. There are so many online sites that come up that promise to let you ask questions about uploaded files etc and they're all paid. I didn't understand why because they seemed easy enough. As I've iterated over this project I've learnt a lot and I've also learnt how many little things are involved in implementing something like this, and how having a running application is completely different from having a jupyter notebook implementation with a local vector store instead of an external one. 
+
+This project demonstates every core learning of this course.
+
+**1. Prompting**
+Four prompt templates guide the LLM at different stages: answer generation (with chat history injection and source citation logic, along with custom detailed instructions to make it conversational), quality evaluation of generated answer (using a 1-10 rubric with explicit groundedness/relevance/completeness criteria) which is used later to run the retry logic, query rewriting (for failed answers in an attempt to produce better ones by analyzing context failure patterns), along with query rewriting for web/wikipedia/arxiv search instead of a vector similarity search. Temperature tuning has been varied depending on the task
+
+**2. Structured Output**
+GraphState defines 16 strongly-typed fields including query/original_query (preserving intent for retry logic), external_context with a state reducer (operator.add) for aggregating parallel search results, relevance_score (1-10 quality metric), and research_mode (toggle for external tools). Metadata is sanitized to convert non-JSON types (ObjectIds, dates) to strings, ensuring serialization safety across MongoDB operations.
+
+**3. Semantic Search**
+Vector embeddings use HuggingFace's all-MiniLM-L6-v2 (384-dimensional), stored in MongoDB Atlas with top-k cosine similarity ranking. Retrieval is adaptive: it starts with k=5, as in top 5 similar documents are retrieved from mongodb, this is then increased upon retry when answer evaluation is poor. This makes an assumption that there might be relevant information to the query in other documents not retrieved. Pre-filtering by file_name ( it is defined in the vector search index as an additional field in mongodb) ensures responses are scoped. I've played around with the Chunking (size=1000, overlap=200) and tested it a couple times before deciding on these valuest that preserve context but are granular enough for good semantic search.
+
+**4. Retrieval Augmented Generation (RAG)**
+A four-stage pipeline: (1) retrieve documents via vector similarity search, (2) generate answers using retrieved documents while also keeping in mind sources in the metadata + external research when research mode is toggled on which conducts parallel search across different sources, (3) evaluate quality (pass if score ≥5), and (4) retry adaptively. Retries escalate: first attempt rewrites the query, second increases search scope, third falls back to failure. Human-in-the-loop  has been integrated at the rewrite stage which prompts the users to approve/edit suggestions or reject them to expand the original search instead.
+
+**5. Tool Calling & Parallel Execution**
+Three external tools run simultaneously when the research mode is toggled on: Tavily Web Search (good for current events, broad topics,etc. gives back top 3 results), Wikipedia (good for definitions, historical facts,etc. returns 1000-char summaries), and ArXiv (good for academic papers and research). This covers a large base of external sources to add as secondary sources to the user's document search. A query optimization node analyzes retrieved files and generates an exclusive prompt for the search queries thats different from the user prompt. It takes into consideration the context and writes a query that will yield the best search results from these external sources. Results aggregate into external_context via the state reducer before generation.
+
+**6. LangGraph: State, Nodes, Graph**
+A 12-node state machine is what compromises the entire workflow: retrieve → conditional research mode check → [optimize_query → parallel searches] or [direct generation] → evaluate → conditional quality routing → [pass, retry, or fail]. Conditional edges enable dynamic routing: research_mode toggles external search, relevance_score triggers retry logic, retry_count selects escalation strategy, user_decision (after human approval) chooses between query rewrite or search expansion. MemorySaver checkpointer enables thread-based persistence.
+
+**7. Memory & Human-in-the-Loop**
+Each session maintains a unique thread_id and chat histories invidually per file and per iteration of every selected combination of files. the last 2-4 messages (AI and Human Message pair form 1 message) are injected into generation and rewriting prompts ( number of messages injected is chosen dynamically based on the lenght of the coversation), enabling follow-up questions from the user. The graph pauses at human_approval before the retry node comes into action (when backend evaluation of generated answer before its actually displayed on the screen scores low so it reccomends the user to rewrite. It also displays the option of selecting an already re-written prompt to use), displaying the rewritten query in an editable form with two options: approve/edit (resulting in using the new query and then retrying retrieval with it) or reject (uses original query, expands search to k+5). State snapshots are checkpointed, allowing resumption after user decisions.
+
+**LangSmith Integration**
+Full tracing captures every LLM invocation (generation, evaluation, rewriting), vector search operations (embedding generation, similarity scores, retrieved chunks), tool calls (API responses), and state transitions.
 
 
 ## Plan
