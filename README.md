@@ -18,63 +18,124 @@ We also learned that Langsmith is a nice tool for debugging Langgraph codes.
 
 ------
 
-# Project report Template
+# Title: Dynabot
 
-## Title: Dynabot
+------
 
-## Overview: CURRENT STATUS 
-
-This is a previosu project I have done and here is the current status 
-
+## Overview:
 
 **DynaBOT** is a Streamlit app for querying the content of uploaded PDF and PPTX files using a Retrieval-Augmented Generation (RAG) pipeline. 
-It supports multi-file upload, intelligent chunking, MongoDB Atlas vector search, and a dynamic LLM query flow orchestrated using LangGraph.
+It supports multi-file upload and querying, intelligent chunking, MongoDB Atlas vector search, External Searches, and a dynamic LLM query flow orchestrated using LangGraph.
 
 
 ## Features
 
+---
+
 ### Dynamic File Handling
 
-- **PDF and PPTX support**
-- Extracts text and tables from PDFs (`pdfplumber`)
-- Converts `.pptx` files to `.pdf` for inline viewing
-- Single-file mode: Side-by-side viewer + chat
-- Multi-file mode: Query across multiple files of different types
-- Document metadata (like file name) stored for filtering during retrieval
-- Supports live add/delete of documents from the vector store to sync with UI session
+- **PDF and PPTX support with dual extraction strategies**
+  - PDFs: Primary PyMuPDF extraction with automatic fallback to pdfplumber for problematic encodings
+  - Extraction quality check: Validates if PyMuPDF found meaningful text; switches to pdfplumber if insufficient content detected
+  - PPTX: UnstructuredPowerPointLoader for text extraction. It auto-converted to PDF for inline Streamlit side by side viewing with LibreOffice. It is not converted to PDF for processing because that looses stylistic details and often other metadata and information as well.
+  -The above mentioned choices with using PyMuPDF, pdfplumber, and Unstructured have been made keeping in mind efficiency and speed, which is why Unstructured hasn't been used for everything as that would be really slow. 
+
+  
+- **Advanced Table Pre-Processing before chunking**
+  - Extracts tables using pdfplumber's table detection algorithm (vertical_strategy: "text", horizontal_strategy: "lines")
+  - Converts tables to Markdown format for better semantic understanding
+  - Inline injection: Tables are inserted immediately after their corresponding page text (not appended at document end) to preserve semantic proximity
+  -  Heuristic checks are run (regex for alphanumeric content, empty DataFrame drops) to discard false-positive tables (often arising from stylistic choices in a pdf) and prevent LLM confusion
+  - Metadata preservation: Each extracted table retains page number association
+  
+- **Text Pre-Processing before chunking**
+  - Whitespace normalization: Removes excessive newlines  and multiple spaces
+  - Single-file and multi-file modes with distinct chat/retrieval contexts
+  - Document metadata (file name, page number, source path) stored for filtering during retrieval
+  - Real-time synchronization: Live add/delete of documents from MongoDB to match UI session state
+  - Orphan file cleanup: Automatic removal of documents that were deleted from UI but remain in vector store
 
 ---
 
-### Modular RAG Pipeline
+### RAG Pipeline
 
-- Uses LangGraph to define the flow:
-  - **Retrieval → Generation → Evaluation → Retry → Fallback**
-- Embeds user queries using HuggingFace models
-- Performs top-k vector search using MongoDB Atlas
+- Embeds user queries using HuggingFace sentence-transformers/all-MiniLM-L6-v2 (384-dimensional vectors)
+- Performs top-k cosine similarity vector search using MongoDB Atlas 
 - Filters retrieved chunks by file name for scoped responses
-- Evaluates the LLM answer quality on a 1–10 scale
-- If quality is low:
-  - Retry 1: Rewrites the query for clarity
-  - Retry 2: Expands retrieval (increases `k`)
-  - Fail: Falls back to default output
+- Evaluates the LLM answer quality on a 1–10 scale using explicit criteria (groundedness, relevance, completeness)
+- If quality is low (score < 5):
+  - Retry 1: Rewrites the query for clarity (analyzes original intent + retrieved content + conversation history)
+  - Retry 2: Expands retrieval (increases `k` by 5) to search broader document set
+  - Fail: Falls back to default output after these 2 retries
 - Retry counter ensures clean loop exit
+- Handles follow-up questions through conversational memory (injects last 1-2 messages (AI Message and Human Message pair is 1 message, the number of messages injected depends upon length of conversation)
 
 ---
 
 ### Vector Store with MongoDB
 
-- Stores embedded chunks in MongoDB Atlas using `MongoDBAtlasVectorSearch`
-- Embeddings generated using `sentence-transformers/all-MiniLM-L6-v2`
+- Stores embedded chunks in MongoDB Atlas 
+- Embeddings generated using `sentence-transformers/all-MiniLM-L6-v2` 
+- Cosine similarity as relevance scoring function
+- Metadata fields indexed: file_name (for pre-filtering), page number (for source attribution), source path
 - Real-time addition/removal of documents to keep storage in sync with session
+- Automatic document vectorization and embedding happens when the user uploads anything to the UI
 
 ---
 
 ###  Streamlit Chat Interface
 
-- File upload, viewing, and selection in sidebar
-- Inline chat window updates based on selected file(s)
-- Maintains chat history and response traceability
-- UI layout adapts to single or multi-file mode
+- File upload widget with multi-file selection and format validation (.pdf, .pptx only)
+-Lists available files (those that have been uploaded), and gives option to select any number of them. What files are selected are shown to the user in the sidebar to easily cross out while still being uploaded for easy access later (later access to previous chat history is possible)
+- Single file mode: User can see a PDF viewer and a chat side-by side.
+- Multi-file mode: Shows a chat with all selected files 
+- Chat history persistence: Separate histories per file and per file combination (keyed by filename or tuple)
+- Live notifications to inform user about current stage in backend processing
+- Custom CSS theming and icons to make the application pretty
+- Research Mode toggle button in sidebar that instantly activates the research mode
+-When a bad prompt is rewritten, a popup appearings with a suggested rewritten prompt and buttons that the user can press to either use the suggested prompt, use their own old prompt, or edit the prompt in-text
+
+
+---
+
+### LangGraph Workflow
+
+
+- **Core Nodes**: retrieve, generate, evaluate, retry_counter, rewrite_query, expand_retrieval, handle_failure, pass_answer
+- **Research Nodes**: optimize_query, search_web, search_wiki, search_arxiv
+- **Control Nodes**: human_approval (breakpoint for user decisions)
+
+- **Conditional Routing** enables dynamic execution:
+  - Research mode check: Routes to optimize_query + parallel searches OR direct generation
+  - Quality evaluation: Routes to pass_answer (score ≥5) OR retry_counter (score <5)
+  - Retry escalation: Routes based on retry_count (1→rewrite, 2→expand, 3→failure)
+  - Human approval: Routes based on user decision (retry with new query OR expand with original)
+
+- **State Persistence**: MemorySaver checkpointer stores state snapshots at each node, allowing resumption after human interrupts
+- **Thread Management**: Unique thread_id per session enables multi-user concurrent execution without state collision
+- **Interrupt Handling**: Graph pauses execution at human_approval node, detects pause state, and allows UI to request user input
+
+---
+
+### Research Mode Integration
+
+-  Analyzes retrieved documents, extracts filenames, generates context-aware search query for the external search that adds as a secondary source along with normal document retrieval
+
+- It runs Tavily Web Search (good for current events, broad topics,etc. gives back top 3 results), Wikipedia (good for definitions, historical facts,etc. returns 1000-char summaries), and ArXiv (good for academic papers and research)
+-  External search results merge via state reducer (operator.add) before answer generation
+-  Answer generation combines internal documents (prioritized) + external research in a clearly structured context block
+
+---
+
+### Conversational Memory & Human-in-the-Loop
+
+- **Adaptive History Injection**:
+  - If total history < 5 messages: Inject last 1 user-assistant pair (2 messages)
+  - If total history ≥ 5 messages: Inject last 2 user-assistant pairs (4 messages)
+  - Applied to both answer generation and query rewriting prompts
+
+
+
 
 ---
 ### Langgraph Dashboard Showcasing Flow
@@ -177,9 +238,9 @@ Three external tools run simultaneously when the research mode is toggled on: Ta
 A 12-node state machine is what compromises the entire workflow: retrieve → conditional research mode check → [optimize_query → parallel searches] or [direct generation] → evaluate → conditional quality routing → [pass, retry, or fail]. Conditional edges enable dynamic routing: research_mode toggles external search, relevance_score triggers retry logic, retry_count selects escalation strategy, user_decision (after human approval) chooses between query rewrite or search expansion. MemorySaver checkpointer enables thread-based persistence.
 
 **7. Memory & Human-in-the-Loop**
-Each session maintains a unique thread_id and chat histories invidually per file and per iteration of every selected combination of files. the last 2-4 messages (AI and Human Message pair form 1 message) are injected into generation and rewriting prompts ( number of messages injected is chosen dynamically based on the lenght of the coversation), enabling follow-up questions from the user. The graph pauses at human_approval before the retry node comes into action (when backend evaluation of generated answer before its actually displayed on the screen scores low so it reccomends the user to rewrite. It also displays the option of selecting an already re-written prompt to use), displaying the rewritten query in an editable form with two options: approve/edit (resulting in using the new query and then retrying retrieval with it) or reject (uses original query, expands search to k+5). State snapshots are checkpointed, allowing resumption after user decisions.
+Each session maintains a unique thread_id and chat histories invidually per file and per iteration of every selected combination of files. the last 2-4 messages (AI and Human Message pair form 1 message) are injected into generation and rewriting prompts ( number of messages injected is chosen dynamically based on the lenght of the coversation), enabling follow-up questions from the user. The graph pauses at human_approval before the retry node comes into action (when backend evaluation of generated answer before its actually displayed on the screen scores low so it reccomends the user to rewrite. It also displays the option of selecting an already re-written prompt to use), displaying the rewritten query in an editable form with two options: approve/edit (resulting in using the new query and then retrying retrieval with it) or reject (uses original query, expands search to k+5). State snapshots are checkpointed, allowing resumption after user decisions. The update_state() method modifies specific fields (query, user_decision) in the checkpoint before resuming, enabling state manipulation without re-running completed nodes
 
-**LangSmith Integration**
+**8. LangSmith Integration**
 Full tracing captures every LLM invocation (generation, evaluation, rewriting), vector search operations (embedding generation, similarity scores, retrieved chunks), tool calls (API responses), and state transitions.
 
 
