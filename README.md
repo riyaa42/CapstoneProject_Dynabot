@@ -282,7 +282,9 @@ I plan to execute these steps to complete my project.
 
 ## Video Summary Link: 
 
----
+https://youtu.be/I7NpOEFo0ys   
+
+The video is longer than the instructed length unfortunately as I tried but could not fit an overview of everything in the project in a smaller timeframe.
 
 ## Conclusion
 
