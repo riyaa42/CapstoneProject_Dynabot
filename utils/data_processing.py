@@ -165,7 +165,7 @@ def convert_pptx_to_pdf(pptx_path: str, output_dir: str) -> str:
     
     try:
        
-        soffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
+        soffice_path = r"C:/ProgramData/Microsoft/Windows/Start Menu/Programs/LibreOffice/program/soffice.exe"
         if not os.path.exists(soffice_path):
              soffice_path = "soffice" # Global command fallback
 
