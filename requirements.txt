@@ -18,3 +18,9 @@ huggingface-hub>=0.19.0
 sentence-transformers>=2.2.0
 unstructured>=0.10.0
 python-pptx>=0.6.21
+libreoffice
+libreoffice-java-common
+default-jre
+libmagic-dev
+poppler-utils
+tesseract-ocr
