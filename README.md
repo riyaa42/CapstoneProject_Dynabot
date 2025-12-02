@@ -27,37 +27,36 @@ We also learned that Langsmith is a nice tool for debugging Langgraph codes.
 ### Dynamic File Handling
 
 - **PDF and PPTX support with dual extraction strategies**
-  - PDFs: Primary PyMuPDF extraction with automatic fallback to pdfplumber for problematic encodings
-  - Extraction quality check: Validates if PyMuPDF found meaningful text; switches to pdfplumber if insufficient content detected
-  - PPTX: UnstructuredPowerPointLoader for text extraction. It auto-converted to PDF for inline Streamlit side by side viewing with LibreOffice. It is not converted to PDF for processing because that looses stylistic details and often other metadata and information as well.
+  - PDFs use PyMuPDF for extraction, but if it fails to grab meaningful text and/or faces problematic encodings, the system automatically switches to pdfplumber as a fallback
+  - PPTX giles are processed with UnstructuredPowerPointLoader for text extraction. It auto-converted to PDF for inline Streamlit side by side viewing with LibreOffice. It is not converted to PDF for processing because that looses stylistic details and often other metadata and information as well.
   - The above mentioned choices with using PyMuPDF, pdfplumber, and Unstructured have been made keeping in mind efficiency and speed, which is why Unstructured hasn't been used for everything as that would be really slow.
 
 - **Advanced Table Pre-Processing before chunking**
-  - Extracts tables using pdfplumber's table detection algorithm (vertical_strategy: "text", horizontal_strategy: "lines")
+  - Tables are detected and extracted using pdfplumber's table detection algorithm (vertical_strategy: "text", horizontal_strategy: "lines")
   - Converts tables to Markdown format for better semantic understanding
-  - Inline injection: Tables are inserted immediately after their corresponding page text (not appended at document end) to preserve semantic proximity
+  - Tables are inserted inline immediately after their corresponding page text (not appended at document end) to preserve semantic proximity in order to keep the context intact
   - Heuristic checks are run (regex for alphanumeric content, empty DataFrame drops) to discard false-positive tables (often arising from stylistic choices in a pdf) and prevent LLM confusion
-  - Metadata preservation: Each extracted table retains page number association
+  - Metadata is preserved because each extracted table retains page number association
 
 - **Text Pre-Processing before chunking**
   - Whitespace normalization: Removes excessive newlines and multiple spaces
   - Single-file and multi-file modes with distinct chat/retrieval contexts
   - Document metadata (file name, page number, source path) stored for filtering during retrieval
-  - Real-time synchronization: Live add/delete of documents from MongoDB to match UI session state
-  - Orphan file cleanup: Automatic removal of documents that were deleted from UI but remain in vector store
+  - MongoDB is synchronized witht the UI session state through live add/delete of documents 
+  - Orphan file cleanup runs on startup. It initiates automatic removal of documents that were deleted from UI but remain in vector store
 
 ### RAG Pipeline
 
-- Embeds user queries using HuggingFace sentence-transformers/all-MiniLM-L6-v2 (384-dimensional vectors)
+- User queries are embedded using HuggingFace sentence-transformers/all-MiniLM-L6-v2 (384-dimensional vectors)
 - Performs top-k cosine similarity vector search using MongoDB Atlas 
 - Filters retrieved chunks by file name for scoped responses
-- Evaluates the LLM answer quality on a 1–10 scale using explicit criteria (groundedness, relevance, completeness)
+- After generating the answer, the llm answer is evaluated on its quality on a 1–10 scale using explicit criteria (groundedness, relevance, completeness)
 - If quality is low (score < 5):
   - Retry 1: Rewrites the query for clarity (analyzes original intent + retrieved content + conversation history)
   - Retry 2: Expands retrieval (increases `k` by 5) to search broader document set
   - Fail: Falls back to default output after these 2 retries
 - Retry counter ensures clean loop exit
-- Handles follow-up questions through conversational memory (injects last 1-2 messages (AI Message and Human Message pair is 1 message, the number of messages injected depends upon length of conversation)
+- Handles follow-up questions through conversational memory (injects last 1-2 messages (AI Message and Human Message pair is 1 message), the number of messages injected depends upon length of conversation)
 
 ### Vector Store with MongoDB
 
@@ -65,8 +64,7 @@ We also learned that Langsmith is a nice tool for debugging Langgraph codes.
 - Embeddings generated using `sentence-transformers/all-MiniLM-L6-v2` 
 - Cosine similarity as relevance scoring function
 - Metadata fields indexed: file_name (for pre-filtering), page number (for source attribution), source path
-- Real-time addition/removal of documents to keep storage in sync with session
-- Automatic document vectorization and embedding happens when the user uploads anything to the UI
+- when you upload a file, it gets vectorized and embedded immediately; delete it, and it's removed from the database
 
 ### Streamlit Chat Interface
 
@@ -88,14 +86,14 @@ We also learned that Langsmith is a nice tool for debugging Langgraph codes.
 - **Control Nodes**: human_approval (breakpoint for user decisions)
 
 - **Conditional Routing** enables dynamic execution:
-  - Research mode check: Routes to optimize_query + parallel searches OR direct generation
-  - Quality evaluation: Routes to pass_answer (score ≥5) OR retry_counter (score <5)
-  - Retry escalation: Routes based on retry_count (1→rewrite, 2→expand, 3→failure)
-  - Human approval: Routes based on user decision (retry with new query OR expand with original)
+  - After retrieval, checks if Research Mode is on → if yes, runs optimize_query + parallel searches; if no, goes straight to generation
+  - After evaluation, checks the score → ≥5 passes, <5 triggers retry logic
+  -Retry escalation: count=1 → rewrite query, count=2 → expand search, count=3 → give up
+  - After human approval, checks what the user picked → retry with new query or expand with original
 
-- **State Persistence**: MemorySaver checkpointer stores state snapshots at each node, allowing resumption after human interrupts
-- **Thread Management**: Unique thread_id per session enables multi-user concurrent execution without state collision
-- **Interrupt Handling**: Graph pauses execution at human_approval node, detects pause state, and allows UI to request user input
+- **State Persistence**:  MemorySaver checkpoints the state at each node so the graph can pick up where it left off after interrupts
+- **Thread Management**: Each session gets a unique thread_id to prevent state collisions between users
+- **Interrupt Handling**: The graph pauses at human_approval, and the UI detects this to show the approval form
 
 ### Research Mode Integration
 
@@ -278,7 +276,37 @@ I plan to execute these steps to complete my project.
 * [TODO] Step 16 revamp data pre processing
   - [DONE]:  Drastically reduced chunk_size and overlap in chunks to improve vector search granularity, yields better outputs.Modified logic to inject Markdown-formatted tables inline with their corresponding page text, preserving semantic proximity (previously appended to the end of the document list).Added heuristic checks (regex for alphanumeric content, empty DataFrame drops) to discard false-positive tables. Made changes to ensures text is captured even from PDFs where PyMuPDF fails which prevents "empty table" data from confusing the LLM and ensures table data is associated with the correct textual context.
 
+---
+
 ## Video Summary Link: 
 
-## Conclusion:
+---
 
+## Conclusion
+
+I had planned to achieve a production-ready RAG application with advanced LangGraph workflows, multi-source research capabilities, and human oversight mechanisms. Looking at my original plan, I think I have achieved the conclusion to a certain level. A significant iteration of this project has been completed and I want to iterate more on this project until I am satisfied with its functionality.
+
+### What I've Achieved
+
+- [x] LangSmith tracing integration for full observability, along with making a studio file to observe graph in langgraph studio
+- [x] Fixed retry node errors and implemented clean error handling
+- [x] Added comprehensive source attribution (file names, page numbers, URLs) in the backend for good metadata handling
+- [x] Research Mode implemented with parallel external tool execution (Tavily, Wikipedia, ArXiv) 
+- [x] Advanced table extraction with inline injection and false-positive filtering
+- [x] Conversational memory with adaptive history windows
+- [x] Complex LangGraph structure with human-in-the-loop approval workflow (completely rewritten langgraph structure from previous iteration for better outputs)
+- [x] UI improvements with custom CSS injections, along with UI implementation of all changes and feature implementations
+- [x] Refined prompt templates for better answer quality
+- [x] Code restructuring into modular folder structure (utils, extras, icons, studio), along with breaking things into more files to avoid clunky code (for ex. made seperate file for the css code instead of having it cluttering app.py)
+- [x] Redid data preprocessing file also with better chunking and dual extraction strategies for pdfs to avoid some edge cases
+
+### What Remains Incomplete
+
+- [ ] Visual folder grouping for files in the UI (multi-file logic is already there mostly I just wanted to make neater UI improvements but I tried and failed because of restrictions streamlit imposes on UI customization to a certain extent)
+- [ ] Advanced post-retrieval filtering using LLM inferred metadata fields (this comes along with the folder implementation but I couldn't do that). This would make outputs even better, especially when common themed files are grouped in a folder.
+- [ ] Tesseract OCR for scanned documents. This would add more flexibility to type of files uploaded.
+- [ ] NetCDF parser for scientific data files. This is something I want to do that is a huge step because NetCDF files are those which are commonly used for things like ocean and satellite data. Adding functionality for this would make scientific usecases very good. This wouldn't be a parser alone as it would have to connect to something like PostGRE SQL and have other complicated logic.
+
+The current system is robust enough to handle real-world document querying tasks with external research augmentation, which was the primary goal so I am satisfied. I have iterated upon the previous version greatly to make something which can stand on its own. I plan to have more versions of this project and I'm going to build upon it in the future. 
+
+---
