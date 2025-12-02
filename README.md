@@ -22,7 +22,7 @@ https://dynabot.streamlit.app/
 
 ## Overview
 
-**DynaBOT** is a Streamlit app I built to query uploaded PDF and PPTX files using a Retrieval-Augmented Generation (RAG) pipeline. I support multi-file upload and querying, intelligent chunking, MongoDB Atlas vector search, external searches, and a dynamic LLM query flow orchestrated with LangGraph.
+**DynaBOT** is a Streamlit app I built to query uploaded PDF and PPTX files using a Retrieval-Augmented Generation (RAG) pipeline. It supports multi-file upload and querying, intelligent chunking, MongoDB Atlas vector search, external searches, and a dynamic LLM query flow orchestrated with LangGraph.
 
 ## Features
 
